@@ -35,5 +35,6 @@ node_modules
 # Floobits
 .floo
 .floobit
-.floo
 .flooignore
+
+.idea/
