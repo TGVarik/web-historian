@@ -1,111 +1,84 @@
-var expect = require('chai').expect;
-var handler = require("../web/request-handler");
-var stubs = require("./stubs/stubs");
-var fs = require('fs');
-var archive = require("../helpers/archive-helpers");
 var path = require('path');
-var res;
+var chai = require('chai');
+var chaiAsPromised = require('chai-as-promised');
+chai.use(chaiAsPromised);
+var should = chai.should();
+var expect = chai.expect;
+var assert = chai.assert;
+var request = require('supertest');
+var archive = require('../helpers/archive-helpers');
+var fs = require('fs');
 
 archive.initialize({
-  list : path.join(__dirname, "/testdata/sites.txt")
+  list : path.join(__dirname, "/testdata/sites.txt"),
+  archivedSites: path.join(__dirname, "/testdata/sites")
 });
-
-// Conditional async testing, akin to Jasmine's waitsFor()
-var waitForThen = function(test, cb) {
-  setTimeout(function() {
-    test() ? cb.apply(this) : waitForThen(test, cb);
-  }, 5);
-};
 
 beforeEach(function(){
-  res = new stubs.Response();
+  fs.writeFileSync(archive.paths.list, "example1.com\nexample2.com");
 });
 
-describe("Node Server Request Listener Function", function() {
-
-  it("Should answer GET requests for /", function(done) {
-    var req = new stubs.Request("/", "GET");
-
-    handler.handleRequest(req, res);
-
-    waitForThen(
-      function() { return res._ended; },
-      function(){
-        expect(res._responseCode).to.equal(200);
-        expect(res._data.toString().match(/<input/)).to.be.ok; // the resulting html should have an input tag
-        done();
-    });
-  });
-
-  it("Should answer GET requests for archived websites", function(done) {
-    var fixtureName = "www.google.com";
-    var req = new stubs.Request("/" + fixtureName, "GET");
-
-    handler.handleRequest(req, res);
-
-    waitForThen(
-      function() { return res._ended; },
-      function(){
-        expect(res._responseCode).to.equal(200);
-        expect(res._data.toString().match(/google/)).to.be.ok; // the resulting html should have the text "google"
-        done();
-    });
-  });
-
-  it("Should append submitted sites to 'sites.txt'", function(done) {
-    var url = "www.example.com";
-    var req = new stubs.Request("/", "POST", {url: url});
-
-    // Reset the test file and process request
-    fs.writeFileSync(archive.paths.list, "");
-    handler.handleRequest(req, res);
-
-    waitForThen(
-      function() { return res._ended; },
-      function(){
-        var fileContents = fs.readFileSync(archive.paths.list, 'utf8');
-        expect(res._responseCode).to.equal(302);
-        expect(fileContents).to.equal(url + "\n");
-        done();
-    });
-  });
-
-  it("Should 404 when asked for a nonexistent file", function(done) {
-    var req = new stubs.Request("/arglebargle", "GET");
-
-    handler.handleRequest(req, res);
-
-    waitForThen(
-      function() { return res._ended; },
-      function(){
-        expect(res._responseCode).to.equal(404);
-        done();
-    });
-  });
-
+afterEach(function(){
+  fs.writeFileSync(archive.paths.list, "example1.com\nexample2.com");
 });
 
-describe("html fetcher helpers", function(){
-
-  it("should have a 'readListOfUrls' function", function(done){
-    var urlArray = ["example1.com", "example2.com"];
-    var resultArray;
-
-    fs.writeFileSync(archive.paths.list, urlArray.join("\n"));
-    archive.readListOfUrls(function(urls){
-      resultArray = urls;
+describe("archive-helpers", function(){
+  describe("readListOfUrls", function(){
+    it("should read the list of URLs", function(){
+      return archive.readListOfUrls().should.eventually.deep.equal(['example1.com', 'example2.com']);
     });
+  });
+  describe("isUrlInList", function(){
+    it('should find a URL in the list', function(){
+      return archive.isUrlInList("example1.com").should.eventually.equal(1);
+    });
+    it('should not find a URL not in the list', function(){
+      return archive.isUrlInList("example3.com").should.eventually.equal(null);
+    });
+  });
+  describe("addUrlToList", function(){
+    it("should append to the list", function(){
+      return archive.readListOfUrls().then(function(urls){
+        return archive.addUrlToList("example4.com").then(function(){
+          return expect(archive.readListOfUrls()).to.eventually.have.length(urls.length + 1);
+        });
+      });
+    });
+    it("should not append to the list if the url is already there", function(){
+      return archive.readListOfUrls().then(function(urls){
+        return archive.addUrlToList("example1.com").then(function(){
+          return expect(archive.readListOfUrls()).to.eventually.have.length(urls.length);
+        });
+      });
+    });
+    it("should return the line number of the url after appending", function(){
+      return archive.addUrlToList("example5.com").should.eventually.equal(3);
+    });
+    it("should return the line number of the url when not appending", function(){
+      return archive.addUrlToList("example1.com").should.eventually.equal(1);
+    });
+  });
+  describe("isUrlArchived", function(){
+    it('should find archived sites', function(){
+      return archive.isUrlArchived("www.google.com").should.eventually.not.equal(null);
+    });
+    it('should not find sites that aren\'t archived', function(){
+      return archive.isUrlArchived("en.wikipedia.org").should.eventually.equal(null);
+    })
+  });
 
-    waitForThen(
-      function() { return resultArray; },
-      function(){
-        expect(resultArray).to.deep.equal(urlArray);
-        done();
+  describe("downloadUrl", function(){
+    it('should download a single url', function(){
+      return archive.downloadUrl('http://wopsr.net').should.be.fulfilled;
     });
   });
 
-  it("should have a 'downloadUrls' function", function(){
-    expect(typeof archive.downloadUrls).to.equal('function');
+  describe("downloadUrls", function(){
+    it('should download sites', function(){
+      return archive.downloadUrls(["http://wopsr.net", "http://va.riks.io/"]).should.be.fulfilled;
+    });
   });
+  xdescribe("getArchivedVersions", function(){
 
+  });
 });

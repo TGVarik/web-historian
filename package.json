@@ -4,13 +4,24 @@
   "main": "web/basic-server.js",
   "author": "Hack Reactor",
   "license": "Copyright 2013, Hack Reactor. All rights reserved.",
-  "dependencies": {},
+  "dependencies": {
+    "URIjs": "^1.14.1",
+    "bluebird": "^2.3.4",
+    "express": "^4.9.5",
+    "mkdirp": "^0.5.0",
+    "moment": "^2.8.3",
+    "q": "^1.0.1",
+    "request": "^2.44.0",
+    "request-promise": "^0.2.0"
+  },
   "devDependencies": {
     "chai": "^1.9.0",
+    "chai-as-promised": "^4.1.1",
     "cron": "^1.0.3",
     "mocha": "^1.21.4",
     "q": "^1.0.0",
     "request": "^2.34.0",
+    "supertest": "^0.14.0",
     "underscore": "^1.6.0"
   },
   "scripts": {
